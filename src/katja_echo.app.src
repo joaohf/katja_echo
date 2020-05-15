@@ -1,0 +1,16 @@
+{application, katja_echo,
+ [{description, "An OTP application"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {katja_echo_app, []}},
+  {applications,
+   [kernel,
+    stdlib,
+    ranch
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.
