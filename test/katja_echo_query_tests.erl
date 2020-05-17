@@ -6,28 +6,43 @@
 -define(PARSER, katja_echo_query_grammar).
 
 simple_query_test() ->
-    String = "service = \"katja 1\"",
-    String0 = "host = 1 and state = 2",
-    String1 = "not ((host = 1 or host = 2) and host = 3)",
+    String = "tagged \"cat\"",
 
-    {ok,Tokens,EndLine} = ?LEXER:string(String),
-    
-    {ok,Tokens1,EndLine1} = ?LEXER:string(String1),
+    Spec = katja_echo_query:parse(String),
 
-    ?debugFmt("~p", [Tokens]),
-    ?debugFmt("~p", [Tokens1]),
-
-    K = ?PARSER:parse(Tokens),
-
-    ?debugFmt("~p", [K]),
+    ?debugFmt("spec: ~p", [Spec]),
     ok.
 
-aquery_lexer_test_() ->
-    String = "service = \"katja 1\"",
-    ?_test({ok,_Tokens,_EndLine} = ?LEXER:string(String)).
-
 query_lexer_test_() ->
-    L = [
+    Q = queries(),
+    query_lexer_gen(Q).
+
+query_lexer_gen([]) ->
+    {generator, fun() -> [] end};
+
+query_lexer_gen([H|Hs]) ->
+    {generator,
+        fun () ->
+            [?_assertMatch({ok, _, _}, ?LEXER:string(H)) | query_lexer_gen(Hs)]
+        end}.
+
+
+query_parse_test_() ->
+    Q = queries(),
+    query_parse_gen(Q).
+
+query_parse_gen([]) ->
+    {generator, fun() -> [] end};
+
+query_parse_gen([H|Hs]) ->
+    {generator,
+        fun () ->
+            [?_assertMatch({ok, _}, katja_echo_query:parse(H)) | query_lexer_gen(Hs)]
+        end}.
+
+
+queries() ->
+    [
        % Fields
        "state = true",
        "host = true",
@@ -62,7 +77,8 @@ query_lexer_test_() ->
        "state = \"foo\"",
        "state = \"\\b\\t\\n\\f\\r\"",
        "state = \" \\\" \\\\ \"",
-       "state = \"辻斬\"",
+       %"state = \"辻斬\"",
+       "state = \"katja 1\"",
 
        % Simple predicates
        "state = 2",
@@ -91,17 +107,5 @@ query_lexer_test_() ->
 
        "not host = 1 or host = 2 and host = 3",
 
-       "not ((host = 1 or host = 2) and host = 3)",
-
-       "service = \"katja 1\""],
-
-    query_lexer_gen(L).
-
-query_lexer_gen([]) ->
-    {generator, fun() -> [] end};
-
-query_lexer_gen([H|Rest]) ->
-    {generator,
-        fun () ->
-            [?_assertMatch({ok, _, _}, ?LEXER:string(H))| query_lexer_gen(Rest)]
-        end}.
+       "not ((host = 1 or host = 2) and host = 3)"
+    ].
