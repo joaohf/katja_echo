@@ -2,15 +2,35 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+-include("katja_echo_pb.hrl").
+
 -define(LEXER, katja_echo_query_lexer).
 -define(PARSER, katja_echo_query_grammar).
 
 simple_query_test() ->
-    String = "tagged \"cat\"",
+    %String = "service = \"s1\" and host =~ \"h1\" and (state = 1 or time != 2) and ttl = 10 and metric = 10 and tagged \"cat\"",
+    %String = "service = \"s1\" and host =~ \"h1\" and (state = 1 and time != 2)",
+    %String = "state = 3",
+    String = "service = \"s1 line_up\"",
 
-    Spec = katja_echo_query:parse(String),
+    {ok, ParseTree} = katja_echo_query:parse(String),
+?debugVal(ParseTree),
+    Tab = ets:new(katja_echo, [set, private]),
 
-    ?debugFmt("spec: ~p", [Spec]),
+    Events = [
+        {{<<"h1">>, <<"s1 line_up">>},
+         #riemannpb_event{host = <<"h1">>, service = <<"s1 line_up">>, state = 1, metric_d = 1, metric_f = 1}},
+        {{<<"h2">>, <<"s2">>},
+         #riemannpb_event{host = <<"h2">>, service = <<"s2">>, state = 1, metric_d = 2, metric_f = 2}},
+        {{<<"h3">>, <<"s1">>},
+         #riemannpb_event{host = <<"h3">>, service = <<"s1">>, state = 3, metric_d = 3, metric_f = 3}}
+    ],
+
+    true = ets:insert(Tab, Events),
+
+    {ok, Results} = katja_echo_query:query(Tab, ParseTree),
+
+    ?debugFmt("spec: ~p results: ~p", [ParseTree, Results]),
     ok.
 
 query_lexer_test_() ->

@@ -33,6 +33,9 @@ stop(SupPid) ->
 
 %% @private
 init([Options]) ->
+
+    katja_echo = ets:new(katja_echo, [set, public, named_table]),
+
     Options0 = check_options(Options),
 
     TcpSpec = child_spec(katja_echo_tcp, Options0),

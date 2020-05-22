@@ -42,7 +42,8 @@ loop(Socket, Transport, Acc, #state{callback = Cbk, errors = Errors} = State) ->
         {OK, Socket, Data} ->
             BinMsg2 = <<Acc/binary, Data/binary>>,
             case katja_echo:decode(tcp, BinMsg2) of
-                {ok, #riemannpb_msg{ok=true, events = [], states = [], query = Query}} ->
+                {ok, #riemannpb_msg{ok=true, events = [], states = [],
+                 query = #riemannpb_query{string = Query}}} ->
 
                     {ok, Results} = katja_echo:query(Cbk, Query),
 

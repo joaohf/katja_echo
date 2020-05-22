@@ -12,7 +12,15 @@
          decode/2,
          incr/1]).
 
--callback events(Events :: list()) -> ok.
+-callback events(events()) -> ok.
+-callback query(events()) -> ok.
+
+-include("katja_echo_pb.hrl").
+
+-type event() :: #riemannpb_event{}.
+-type state() :: #riemannpb_state{}.
+-type events() :: [event() | state()].
+-type_export([event/0, state/0]).
 
 -type katja_echo_options() :: [katja_echo_option()].
 -type katja_echo_option()  ::
@@ -21,7 +29,7 @@
     | {callback, module()}.
 -export_type([katja_echo_option/0, katja_echo_options/0]).
 
--include_lib("katja_echo_pb.hrl").
+-define(TAB, ?MODULE).
 
 
 start_link() ->
@@ -62,41 +70,64 @@ callback(Opts) ->
 %%---------------------------------------------------------------------
 %% @private
 %% @doc
-%% Process all `Events'
+%% Process all `Events'. Write events in ETS table and call the user
+%% callback for further processing.
 %% @end
 %%---------------------------------------------------------------------
 
 -spec events(Callback :: module() | fun(), Events :: list()) -> ok.
 
 events(Module, Events) when is_atom(Module) ->
+    ok = do_events(Events),
     catch Module:events(Events),
     ok;
 
 events(Callback, Events) when is_function(Callback, 1) ->
+    ok = do_events(Events),
     catch Callback(Events),
     ok.
+
+
+do_events(Events) when is_list(Events) ->
+    _ = [insert_event(Event) || Event <- Events],
+    ok.
+
+insert_event(#riemannpb_event{host = H, service = S} = E) ->
+    ets:insert(?TAB, {{H, S}, E});
+
+insert_event(#riemannpb_state{host = H, service = S} = E) ->
+    ets:insert(?TAB, {{H, S}, E}).
 
 
 %%---------------------------------------------------------------------
 %% @private
 %% @doc
-%% Process a query
+%% Process a query parsing and fetching data from ETS table. Call the
+%% user callback for further processing.
 %% @end
 %%---------------------------------------------------------------------
 
 -spec query(Callback :: module() | fun(), Events :: list()) -> {ok, list()}.
 
 query(Module, Query) when is_atom(Module) ->
-    {ok, Query1} = do_query(Query),
-    {ok, _Results} = Module:query(Query1);
+    {ok, Results} = do_query(Query),
+    catch (Module:query(Results)),
+    {ok, Results};
 
 query(Callback, Query) when is_function(Callback, 1) ->
-    {ok, Query1} = do_query(Query),
-    {ok, _Results} = Callback:query(Query1).
+    {ok, Results} = do_query(Query),
+    catch (Callback(Results)),
+    {ok, Results}.
 
 
-do_query(_Query) ->
-    {ok, []}.
+do_query({ok, ParseTree}) ->
+    katja_echo_query:query(?TAB, ParseTree);
+    
+do_query({error, {_LineNumber, Module, Message}}) ->
+    {error, {"syntax error", Module:format_error(Message)}};
+
+do_query(Query) ->
+    do_query(katja_echo_query:parse(Query)).
 
 %%---------------------------------------------------------------------
 %% @doc
@@ -104,9 +135,9 @@ do_query(_Query) ->
 %% @end
 %%---------------------------------------------------------------------
 
--spec events(Events :: list()) -> ok.
+-spec events(Events :: events()) -> ok.
 
-events(_Events) ->    
+events(_Events) ->
     ok.
 
 
@@ -116,10 +147,10 @@ events(_Events) ->
 %% @end
 %%---------------------------------------------------------------------
 
--spec query(Query :: any()) -> {ok, list()}.
+-spec query(Query :: any()) -> {ok, list(event() | state())}.
 
 query(_Query) ->
-    {ok, []}.
+    ok.
 
 
 %%---------------------------------------------------------------------
