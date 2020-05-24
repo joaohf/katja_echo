@@ -17,6 +17,7 @@ _build
 *.iml
 rebar3.crashdump
 *~
+doc/*
 
 src/katja_echo_query_grammar.erl
 src/katja_echo_query_lexer.erl

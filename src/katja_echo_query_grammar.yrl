@@ -1,3 +1,9 @@
+%%%-------------------------------------------------------------------
+%% @hidden
+%% @doc Riemann Query parser.
+%% @end
+%%%-------------------------------------------------------------------
+
 Nonterminals predicates predicate primary value.
 
 Terminals 'not' union intersection tagged string field number

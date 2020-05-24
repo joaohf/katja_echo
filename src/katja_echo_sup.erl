@@ -1,5 +1,6 @@
 %%%-------------------------------------------------------------------
-%% @doc katja_echo top level supervisor.
+%% @hidden
+%% @doc Supervisor of Katja Echo application.
 %% @end
 %%%-------------------------------------------------------------------
 
@@ -28,7 +29,7 @@ start_link(Options) ->
 
 
 stop(SupPid) ->
-	erlang:exit(SupPid, normal).
+    erlang:exit(SupPid, normal).
 
 
 %% @private
@@ -68,11 +69,13 @@ child_spec(katja_echo_tcp = Mod, Options) ->
     Port = proplists:get_value(port, Options),
     Ref = {?SERVER, Mod},
     TransportOpts = #{socket_opts => [{port, Port}]},
-    
+
     ranch:child_spec(Ref, ranch_tcp, TransportOpts, Mod, Options).
 
 
--spec maybe_add_child(atom(), [atom()], supervisor:child_spec(), [supervisor:child_spec()]) -> [supervisor:child_spec()].
+-spec maybe_add_child(atom(), [atom()], supervisor:child_spec(),
+    [supervisor:child_spec()]) -> [supervisor:child_spec()].
+
 maybe_add_child(Child, Pool, Spec, Children) ->
   case lists:member(Child, Pool) of
     true -> Children;

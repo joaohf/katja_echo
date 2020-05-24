@@ -1,3 +1,8 @@
+%%%-------------------------------------------------------------------
+%% @doc Main Katja Echo API.
+%% @end
+%%%-------------------------------------------------------------------
+
 -module(katja_echo).
 
 -export([start_link/0,
@@ -122,7 +127,7 @@ query(Callback, Query) when is_function(Callback, 1) ->
 
 do_query({ok, ParseTree}) ->
     katja_echo_query:query(?TAB, ParseTree);
-    
+
 do_query({error, {_LineNumber, Module, Message}}) ->
     {error, {"syntax error", Module:format_error(Message)}};
 

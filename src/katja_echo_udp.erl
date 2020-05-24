@@ -1,3 +1,9 @@
+%%%-------------------------------------------------------------------
+%% @hidden
+%% @doc Module responsible for receiving UDP packets.
+%% @end
+%%%-------------------------------------------------------------------
+
 -module(katja_echo_udp).
 
 -behaviour(gen_server).
@@ -108,14 +114,15 @@ handle_cast(_Msg, State) ->
 
 -spec handle_info(_Info, State :: state()) -> {noreply, State :: state()}.
 
-handle_info({udp, _Socket, _IP, _InPortNo, Packet}, #state{callback = Cbk, errors = Errors} = State) ->
+handle_info({udp, _Socket, _IP, _InPortNo, Packet},
+    #state{callback = Cbk, errors = Errors} = State) ->
 
-    NState = 
+    NState =
     case katja_echo:decode(udp, Packet) of
-        {ok, #riemannpb_msg{ok=true, events = Events}} ->            
+        {ok, #riemannpb_msg{ok=true, events = Events}} ->
             ok = katja_echo:events(Cbk, Events),
             State;
-        {error, #riemannpb_msg{ok=false, error=Reason}} ->                    
+        {error, #riemannpb_msg{ok=false, error=Reason}} ->
             Errors0 = maps:update_with(Reason, fun katja_echo:incr/1, 1, Errors),
             State#state{errors = Errors0};
         {error, Reason} ->

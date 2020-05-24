@@ -1,5 +1,6 @@
 %%%-------------------------------------------------------------------
-%% @doc katja_echo public API
+%% @hidden
+%% @doc Module for the Katja Echo application behaviour.
 %% @end
 %%%-------------------------------------------------------------------
 

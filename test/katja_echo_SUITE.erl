@@ -32,7 +32,7 @@ groups() ->
         ]}
     ].
 
-all() -> 
+all() ->
     [
         {group, start_stop},
         {group, udp},
@@ -42,7 +42,7 @@ all() ->
 
 
 suite() ->
-    [{timetrap,{minutes,10}}].
+    [{timetrap, {minutes, 10}}].
 
 
 init_per_suite(Config) ->
@@ -69,14 +69,14 @@ init_per_testcase(_TestCase, Config) ->
     Config.
 
 
-end_per_testcase(_TestCase, _Config) -> 
+end_per_testcase(_TestCase, _Config) ->
     ok.
 
 %%--------------------------------------------------------------------
 %% TEST CASES
 %%--------------------------------------------------------------------
 
-start_and_stop() -> 
+start_and_stop() ->
     [].
 
 start_and_stop(_Config) ->
@@ -86,10 +86,10 @@ start_and_stop(_Config) ->
 
     ok.
 
-listen_udp_events() -> 
+listen_udp_events() ->
     [].
 
-listen_udp_events(_Config) -> 
+listen_udp_events(_Config) ->
     {ok, Ref, Fun} = reply_events(),
 
     Event = default_event(),
@@ -110,7 +110,7 @@ listen_udp_events(_Config) ->
     ok.
 
 
-listen_tcp_events() -> 
+listen_tcp_events() ->
    [].
 
 listen_tcp_events(_Config) ->
@@ -152,7 +152,7 @@ query_events(_Config) ->
     {metric, Metric} = lists:keyfind(metric, 1, Event),
 
     {ok, [QEvent]} = katja:query_event([{service, Service}]),
-    
+
     {metric, Metric} = lists:keyfind(metric, 1, QEvent),
 
     erlang:exit(Pid, normal),
@@ -170,8 +170,8 @@ default_event(Count) ->
     F = fun(_Elem, Acc) -> [default_event() | Acc] end,
     lists:foldl(F, [], lists:seq(0, Count - 1)).
 
-events(Events) ->
-    ct:pal("events: ~p", [Events]).
+events(_Events) ->
+    ok.
 
 reply_events() ->
     Ref = make_ref(),

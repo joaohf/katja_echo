@@ -1,0 +1,31 @@
+@title Katja Echo
+@author João Henrique Ferreira de Freitas <joaohf@gmail.com>
+@copyright {@years} João Henrique Ferreira de Freitas
+@version {@version}
+
+@doc
+Katja Echo is a simple <a href="http://riemann.io" target="_blank">Riemann</a> server implementation written in Erlang. The source code can be found on <a href="https://github.com/katja-beam/katja_echo" target="_blank">GitHub</a>.
+
+<a href="https://travis-ci.org/katja-beam/katja_echo" target="_blank"><img src="https://travis-ci.org/katja-beam/katja_echo.png" /></a>
+<a href="https://coveralls.io/r/katja-beam/katja_echo?branch=master" target="_blank"><img src="https://coveralls.io/repos/katja-beam/katja_echo/badge.png?branch=master" /></a>
+
+The public API of Katja Echo can be found in the {@link katja_echo} module.
+
+The default configuration looks like this:
+
+<pre><code>[
+    {katja_echo, [
+        {port, 5555},
+        {pool, []},
+        {callback, katja_echo}
+    ]}
+].</code></pre>
+
+<a href="https://github.com/katja-beam/katja_echo/blob/master/CHANGELOG.md" target="_blank">Changelog</a>
+
+<h2>Related Projects</h2>
+
+<ul>
+  <li><a href="https://github.com/katja-beam/katja" target="_blank">Katja</a> - Katja is a simple <a href="http://riemann.io" target="_blank">Riemann</a> client written in Erlang</li>
+  <li><a href="https://github.com/katja-beam/katja_vmstats" target="_blank">Katja VM Stats</a> - Easily send information about the Erlang VM to Riemann</li>
+</ul>

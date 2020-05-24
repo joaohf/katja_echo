@@ -1,3 +1,10 @@
+%%%-------------------------------------------------------------------
+%% @hidden
+%% @doc Module responsible for receiving TCP packets. Also implements
+%% the ranch_tcp protocol.
+%% @end
+%%%-------------------------------------------------------------------
+
 -module(katja_echo_tcp).
 -behaviour(ranch_protocol).
 
@@ -16,7 +23,8 @@
 %% @end
 %%---------------------------------------------------------------------
 
--spec start_link(Ref :: ranch:ref(), Transport :: module(), Opts :: katja_echo:katja_echo_options()) -> {ok, pid()}.
+-spec start_link(Ref :: ranch:ref(), Transport :: module(),
+    Opts :: katja_echo:katja_echo_options()) -> {ok, pid()}.
 
 start_link(Ref, Transport, Opts) ->
     Pid = spawn_link(?MODULE, init, [Ref, Transport, Opts]),
@@ -28,7 +36,8 @@ start_link(Ref, Transport, Opts) ->
 %% @end
 %%---------------------------------------------------------------------
 
--spec init(Ref :: ranch:ref(), Transport :: module(), Opts :: katja_echo:katja_echo_options()) -> any().
+-spec init(Ref :: ranch:ref(), Transport :: module(),
+    Opts :: katja_echo:katja_echo_options()) -> any().
 
 init(Ref, Transport, Opts) ->
     {ok, Socket} = ranch:handshake(Ref),
@@ -56,7 +65,7 @@ loop(Socket, Transport, Acc, #state{callback = Cbk, errors = Errors} = State) ->
                     ok = katja_echo:events(Cbk, Events),
 
                     loop(Socket, Transport, <<>>, State);
-                {error, #riemannpb_msg{ok=false, error=Reason}} ->                    
+                {error, #riemannpb_msg{ok=false, error=Reason}} ->
                     Errors0 = maps:update_with(Reason, fun katja_echo:incr/1, Errors),
                     loop(Socket, Transport, <<>>, State#state{errors = Errors0});
                 {error, Reason} ->
