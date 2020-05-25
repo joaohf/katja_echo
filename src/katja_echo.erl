@@ -36,10 +36,27 @@
 
 -define(TAB, ?MODULE).
 
+%%---------------------------------------------------------------------
+%% @doc
+%% Start a supervisor tree to handle udp and tcp connections.
+%% @see start_link/1
+%% @end
+%%---------------------------------------------------------------------
+
+-spec start_link() -> {ok, pid()}.
 
 start_link() ->
     katja_echo_sup:start_link().
 
+
+%%---------------------------------------------------------------------
+%% @doc
+%% Start a supervisor tree to handle udp and tcp connections.
+%% @param Options is a list of config values.
+%% @end
+%%---------------------------------------------------------------------
+
+-spec start_link(Options :: katja_echo_options()) -> {ok, pid()}.
 
 start_link(Options) when is_list(Options) ->
     katja_echo_sup:start_link(Options).
@@ -48,7 +65,7 @@ start_link(Options) when is_list(Options) ->
 %%---------------------------------------------------------------------
 %% @private
 %% @doc
-%% Provide default value of a given option.
+%% Returns the default configuration.
 %% @end
 %%---------------------------------------------------------------------
 
@@ -58,12 +75,30 @@ default() ->
     [{pool, []}, {callback, katja_echo}, {port, 5555}].
 
 
+%%---------------------------------------------------------------------
+%% @private
+%% @doc
+%% Provides default value for a given option.
+%% @end
+%%---------------------------------------------------------------------
+
+-spec default(Options :: atom()) -> term().
+
 default(Option) ->
     proplists:get_value(Option, default()).
 
 
-callback(Opts) ->
-    case lists:keyfind(callback, 1, Opts) of
+%%---------------------------------------------------------------------
+%% @private
+%% @doc
+%% Returns the current callback configurated.
+%% @end
+%%---------------------------------------------------------------------
+
+-spec callback(Options :: katja_echo_options()) -> module() | function().
+
+callback(Options) ->
+    case lists:keyfind(callback, 1, Options) of
         {_, Mod} when is_atom(Mod) ->
             Mod;
         {_, Fun} when is_function(Fun, 1) ->
@@ -72,15 +107,17 @@ callback(Opts) ->
             default(callback)
     end.
 
+
 %%---------------------------------------------------------------------
 %% @private
 %% @doc
-%% Process all `Events'. Write events in ETS table and call the user
+%% Process all `Events'. Writing each event into ETS table. Calls the user
 %% callback for further processing.
 %% @end
 %%---------------------------------------------------------------------
 
--spec events(Callback :: module() | fun(), Events :: list()) -> ok.
+-spec events(Callback :: module() | fun((Events :: events()) -> ok),
+    Events :: events()) -> ok.
 
 events(Module, Events) when is_atom(Module) ->
     ok = do_events(Events),
@@ -97,6 +134,7 @@ do_events(Events) when is_list(Events) ->
     _ = [insert_event(Event) || Event <- Events],
     ok.
 
+
 insert_event(#riemannpb_event{host = H, service = S} = E) ->
     ets:insert(?TAB, {{H, S}, E});
 
@@ -105,14 +143,18 @@ insert_event(#riemannpb_state{host = H, service = S} = E) ->
 
 
 %%---------------------------------------------------------------------
-%% @private
 %% @doc
-%% Process a query parsing and fetching data from ETS table. Call the
-%% user callback for further processing.
+%% Process a query scanning, parsing and fetching data from ETS table.
+%% Call the user callback for further processing. If `Callback' is
+%% undefined, no user callback will be called.
 %% @end
 %%---------------------------------------------------------------------
 
--spec query(Callback :: module() | fun(), Events :: list()) -> {ok, list()}.
+-spec query(Callback :: undefined | module() | fun((events()) -> ok), Events :: events()) ->
+    {ok, events()}.
+
+query(undefined, Query) ->
+    {ok, _Results} = do_query(Query);
 
 query(Module, Query) when is_atom(Module) ->
     {ok, Results} = do_query(Query),
@@ -134,9 +176,12 @@ do_query({error, {_LineNumber, Module, Message}}) ->
 do_query(Query) ->
     do_query(katja_echo_query:parse(Query)).
 
+
 %%---------------------------------------------------------------------
 %% @doc
-%% Default function to process events
+%% @private
+%% Fallback function to process events. If the user have not been defined
+%% a callback to receive events, this function will be called.
 %% @end
 %%---------------------------------------------------------------------
 
@@ -148,11 +193,13 @@ events(_Events) ->
 
 %%---------------------------------------------------------------------
 %% @doc
-%% Default function to process query
+%% @private
+%% Fallback function to process queried events. If the user have not been defined
+%% a callback to receive events, this function will be called.
 %% @end
 %%---------------------------------------------------------------------
 
--spec query(Query :: any()) -> {ok, list(event() | state())}.
+-spec query(Query :: any()) -> ok.
 
 query(_Query) ->
     ok.
@@ -161,9 +208,14 @@ query(_Query) ->
 %%---------------------------------------------------------------------
 %% @private
 %% @doc
-%% Decode riemann protocol
+%% Decode riemann protocol. This functions works decoding a whole buffer
+%% that must have a valid riemann packet.
 %% @end
 %%---------------------------------------------------------------------
+
+-spec decode(tcp | udp, Msg :: binary()) ->
+    {ok, katja_echo_pb:riemannpb_msg()} | {error, katja_echo_pb:riemannpb_msg()} |
+    {error, too_short} | {error, invalid_packet}.
 
 decode(udp, Msg) when is_binary(Msg) ->
     try katja_echo_pb:decode_riemannpb_msg(Msg) of
@@ -190,4 +242,10 @@ decode(tcp, _) ->
     {error, invalid_packet}.
 
 
+%%---------------------------------------------------------------------
+%% @private
+%% @doc
+%% Helper function that increments a integer value.
+%% @end
+%%---------------------------------------------------------------------
 incr(V) -> V + 1.

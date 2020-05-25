@@ -1,9 +1,3 @@
-%%%-------------------------------------------------------------------
-%% @hidden
-%% @doc Riemann Query parser.
-%% @end
-%%%-------------------------------------------------------------------
-
 Nonterminals predicates predicate primary value.
 
 Terminals 'not' union intersection tagged string field number
@@ -40,6 +34,13 @@ value -> nil : '$1'.
 value -> number : '$1'.
 value -> string : '$1'.
 value -> field : '$1'.
+
+Header
+"%%%-------------------------------------------------------------------"
+"%% @hidden"
+"%% @doc Riemann Query parser."
+"%% @end"
+"%%%-------------------------------------------------------------------".
 
 Erlang code.
 

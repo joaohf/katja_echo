@@ -13,7 +13,8 @@
 -export([start_link/3]).
 -export([init/3]).
 
--record(state, {callback = undefined :: mfa(), errors = #{} :: map()}).
+-record(state, {callback = undefined :: module() | fun(),
+                errors = #{} :: map()}).
 
 -type state() :: #state{}.
 
@@ -43,6 +44,15 @@ init(Ref, Transport, Opts) ->
     {ok, Socket} = ranch:handshake(Ref),
     Cbk = katja_echo:callback(Opts),
     loop(Socket, Transport, <<>>, #state{callback = Cbk}).
+
+
+%%---------------------------------------------------------------------
+%% @doc
+%% Init function
+%% @end
+%%---------------------------------------------------------------------
+
+-spec loop(Socket :: any(), Transport :: module(), Acc :: binary(), state()) -> ok.
 
 loop(Socket, Transport, Acc, #state{callback = Cbk, errors = Errors} = State) ->
     {OK, Closed, Error, _Passive} = Transport:messages(),

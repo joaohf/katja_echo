@@ -23,21 +23,13 @@ parse(String) ->
 
 
 query(Tab, P) ->
-    Results = qq(Tab, P, []),
-
-    ?debugVal(Results),
-
-    {ok, Results}.
+    {ok, qq(Tab, P, [])}.
 
 % build match spec
 
 do_query(Tab, MatchConditions) ->
     MS = [{{'_', '$1'}, MatchConditions, ['$1']}],
-
-    % query
-    Results = ets:select(Tab, MS),
-
-    {ok, Results}.
+    {ok, ets:select(Tab, MS)}.
 
 
 qq(_Tab, [], R) ->
