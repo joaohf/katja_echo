@@ -29,7 +29,8 @@ start_link(Options) ->
 
 
 stop(SupPid) ->
-    erlang:exit(SupPid, normal).
+    true = erlang:exit(SupPid, normal),
+    ok.
 
 
 %% @private

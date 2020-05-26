@@ -19,7 +19,8 @@
 groups() ->
     [
         {start_stop, [], [
-            start_and_stop
+            start_and_stop,
+            listen_events_default_options
         ]},
         {udp, [], [
             listen_udp_events
@@ -29,6 +30,7 @@ groups() ->
         ]},
         {query, [], [
             query_events
+            %query_invalid_events
         ]}
     ].
 
@@ -86,6 +88,27 @@ start_and_stop(_Config) ->
 
     ok.
 
+
+listen_events_default_options() ->
+    [].
+
+listen_events_default_options(_Config) ->
+    {ok, _} = application:ensure_all_started(katja_echo),
+
+    Events = default_event(10),
+
+    ok = katja:send_event(katja_writer, udp, Events),
+    ok = katja:send_event(katja_writer, tcp, Events),
+
+    {ok, _} = katja_echo:query(undefined, "metric = 9001"),
+
+    {ok, {error, _}} = katja_echo:query(katja_echo, "invalid"),
+
+    ok = application:stop(katja_echo),
+
+    ok.
+
+
 listen_udp_events() ->
     [].
 
@@ -129,7 +152,7 @@ listen_tcp_events(_Config) ->
 
     check_event(Ref, Events),
 
-    erlang:exit(Pid, normal),
+    katja_echo_sup:stop(Pid),
 
     ok.
 
@@ -155,7 +178,28 @@ query_events(_Config) ->
 
     {metric, Metric} = lists:keyfind(metric, 1, QEvent),
 
-    erlang:exit(Pid, normal),
+    katja_echo_sup:stop(Pid),
+
+    ok.
+
+
+query_invalid_events() ->
+    [].
+
+query_invalid_events(_Config) ->
+    {ok, Ref, Fun} = reply_events(),
+
+    Event = default_event(),
+
+    {ok, Pid} = katja_echo:start_link([{callback, Fun}]),
+
+    ok = katja:send_event(katja_writer, tcp, Event),
+
+    check_event(Ref, Event),
+
+    {error, _} = katja_echo:query(undefined, "invalid"),
+
+    katja_echo_sup:stop(Pid),
 
     ok.
 

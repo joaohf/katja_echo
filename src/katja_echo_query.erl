@@ -48,11 +48,17 @@ qq(Tab, [{field, _, _, _} = P | [] = Hs], R) ->
     qq(Tab, Hs, Results ++ R);
 
 qq(Tab, [{field, _, _, _} = P | Hs], R) ->
+    qq(Tab, Hs, make_match_conditions('andalso', Tab, P) ++ R);
+
+qq(Tab, [{field, _, _} = P | Hs], R) ->
     qq(Tab, Hs, make_match_conditions('andalso', Tab, P) ++ R).
 
 
+make_match_conditions(Op, Tab, P) when is_list(P) ->
+    [list_to_tuple([Op | q(Tab, P, [])])];
+
 make_match_conditions(Op, Tab, P) ->
-    [list_to_tuple([Op | q(Tab, [P], [])])].
+    make_match_conditions(Op, Tab, [P]).
 
 
 q(_Tab, [], R) ->
@@ -79,23 +85,24 @@ q(Tab, [{field, host, Op, Host} | Hs], R) ->
 q(Tab, [{field, description, Op, Description} | Hs], R) ->
     q(Tab, Hs, [{Op, {element, 6, '$1'}, {const, Description}} | R]);
 
-q(Tab, [{field, tags, Op, Tags} | Hs], R) ->
-    q(Tab, Hs, [{Op, {element, 7, '$1'}, {const, Tags}} | R]);
+q(Tab, [{field, tagged, Tags} | Hs], R) ->
+    % tagged is a list, it is safe to use == here
+    q(Tab, Hs, [{'==', {element, 7, '$1'}, {const, Tags}} | R]);
 
 q(Tab, [{field, ttl, Op, Ttl} | Hs], R) ->
     q(Tab, Hs, [{Op, {element, 8, '$1'}, {const, Ttl}} | R]);
 
-q(Tab, [{field, attributes, Op, Attributes} | Hs], R) ->
-    q(Tab, Hs, [{Op, {element, 9, '$1'}, {const, Attributes}} | R]);
-
-q(Tab, [{field, time_micros, Op, TimeMicros} | Hs], R) ->
-    q(Tab, Hs, [{Op, {element, 10, '$1'}, {const, TimeMicros}} | R]);
-
-q(Tab, [{field, metric_sint64, Op, Metric} | Hs], R) ->
-    q(Tab, Hs, [{Op, {element, 11, '$1'}, {const, Metric}} | R]);
-
-q(Tab, [{field, metric_d, Op, Metric} | Hs], R) ->
+q(Tab, [{field, M, Op, Metric} | Hs], R) when M == metric; M == metric_d ->
     q(Tab, Hs, [{Op, {element, 12, '$1'}, {const, Metric}} | R]);
 
 q(Tab, [{field, metric_f, Op, Metric} | Hs], R) ->
     q(Tab, Hs, [{Op, {element, 13, '$1'}, {const, Metric}} | R]).
+
+%q(Tab, [{field, attributes, Op, Attributes} | Hs], R) ->
+%    q(Tab, Hs, [{Op, {element, 9, '$1'}, {const, Attributes}} | R]);
+
+%q(Tab, [{field, time_micros, Op, TimeMicros} | Hs], R) ->
+%    q(Tab, Hs, [{Op, {element, 10, '$1'}, {const, TimeMicros}} | R]);
+
+%q(Tab, [{field, metric_sint64, Op, Metric} | Hs], R) ->
+%    q(Tab, Hs, [{Op, {element, 11, '$1'}, {const, Metric}} | R]).

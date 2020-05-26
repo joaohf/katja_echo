@@ -25,7 +25,7 @@ primary -> '(' ')'.
 primary -> '(' predicate ')' : '$2'.
 primary -> field comparator value : {field, unwrap('$1'), unwrap('$2'), unwrap('$3')}.
 primary -> field like string : {field, unwrap('$1'), unwrap('$2'), unwrap('$3')}.
-primary -> tagged string : {field, unwrap('$1'), unwrap('$2')}.
+primary -> tagged string : {field, unwrap('$1'), [unwrap('$2')]}.
 
 
 value -> true : '$1'.

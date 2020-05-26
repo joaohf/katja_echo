@@ -154,17 +154,24 @@ insert_event(#riemannpb_state{host = H, service = S} = E) ->
     {ok, events()}.
 
 query(undefined, Query) ->
-    {ok, _Results} = do_query(Query);
+    do_query(Query);
 
 query(Module, Query) when is_atom(Module) ->
-    {ok, Results} = do_query(Query),
+    Results = check_results(do_query(Query)),
     catch (Module:query(Results)),
     {ok, Results};
 
 query(Callback, Query) when is_function(Callback, 1) ->
-    {ok, Results} = do_query(Query),
+    Results = check_results(do_query(Query)),
     catch (Callback(Results)),
     {ok, Results}.
+
+
+check_results({ok, Results}) ->
+    Results;
+
+check_results({error, _Reason} = E) ->
+    E.
 
 
 do_query({ok, ParseTree}) ->
