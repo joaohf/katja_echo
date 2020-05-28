@@ -12,7 +12,6 @@ simple_query_gen(_Tab, []) ->
     {generator, fun() -> [] end};
 
 simple_query_gen(Tab, [H|Hs]) ->
-?debugVal(H),
     {generator,
         fun () ->
             [
