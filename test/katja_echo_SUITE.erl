@@ -102,7 +102,7 @@ listen_events_default_options(_Config) ->
 
     {ok, _} = katja_echo:query(undefined, "metric = 9001"),
 
-    {ok, {error, _}} = katja_echo:query(katja_echo, "invalid"),
+    {ok, {error, _}} = katja_echo:query(katja_echo_user, "invalid"),
 
     ok = application:stop(katja_echo),
 

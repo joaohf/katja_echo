@@ -17,7 +17,7 @@ The default configuration looks like this:
     {katja_echo, [
         {port, 5555},
         {pool, []},
-        {callback, katja_echo}
+        {callback, katja_echo_user}
     ]}
 ].</code></pre>
 

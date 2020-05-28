@@ -11,14 +11,13 @@
          default/1,
          callback/1,
          events/2,
-         events/1,
          query/2,
-         query/1,
          decode/2,
          incr/1]).
 
--callback events(events()) -> ok.
--callback query(events()) -> ok.
+-callback events(Events :: events()) -> ok.
+
+-callback query(Events :: events()) -> ok.
 
 -include("katja_echo_pb.hrl").
 
@@ -72,7 +71,7 @@ start_link(Options) when is_list(Options) ->
 -spec default() -> katja_echo_options().
 
 default() ->
-    [{pool, []}, {callback, katja_echo}, {port, 5555}].
+    [{pool, []}, {callback, katja_echo_user}, {port, 5555}].
 
 
 %%---------------------------------------------------------------------
@@ -182,34 +181,6 @@ do_query({error, {_LineNumber, Module, Message}}) ->
 
 do_query(Query) ->
     do_query(katja_echo_query:parse(Query)).
-
-
-%%---------------------------------------------------------------------
-%% @doc
-%% @private
-%% Fallback function to process events. If the user have not been defined
-%% a callback to receive events, this function will be called.
-%% @end
-%%---------------------------------------------------------------------
-
--spec events(Events :: events()) -> ok.
-
-events(_Events) ->
-    ok.
-
-
-%%---------------------------------------------------------------------
-%% @doc
-%% @private
-%% Fallback function to process queried events. If the user have not been defined
-%% a callback to receive events, this function will be called.
-%% @end
-%%---------------------------------------------------------------------
-
--spec query(Query :: any()) -> ok.
-
-query(_Query) ->
-    ok.
 
 
 %%---------------------------------------------------------------------
