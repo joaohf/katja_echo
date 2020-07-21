@@ -6,30 +6,60 @@
 %%%-------------------------------------------------------------------
 
 -module(katja_echo_tcp).
--behaviour(ranch_protocol).
+
+-behaviour(gen_statem).
 
 -include_lib("katja_echo_pb.hrl").
 
--export([start_link/3]).
--export([init/3]).
+-export([start_link/1,
+         stop/1]).
+
+-export([callback_mode/0,
+         init/1,
+         terminate/3]).
+
+-export([idle/3,
+         connected/3]).
 
 -record(state, {callback = undefined :: module() | fun(),
+                lsocket = undefined :: undefined | gen_tcp:socket(),
+                socket = undefined :: undefined | gen_tcp:socket(),
+                data = <<>> :: binary(),
                 errors = #{} :: map()}).
 
 -type state() :: #state{}.
 
 %%---------------------------------------------------------------------
 %% @doc
-%% Start the connection handler
+%% Start process to handle the connection.
 %% @end
 %%---------------------------------------------------------------------
 
--spec start_link(Ref :: ranch:ref(), Transport :: module(),
-    Opts :: katja_echo:katja_echo_options()) -> {ok, pid()}.
+-spec start_link(Socket :: gen_tcp:socket()) -> {ok, pid()}.
 
-start_link(Ref, Transport, Opts) ->
-    Pid = spawn_link(?MODULE, init, [Ref, Transport, Opts]),
-    {ok, Pid}.
+start_link(SocketAndOptions) ->
+    gen_statem:start_link(?MODULE, SocketAndOptions, []).
+
+
+%%---------------------------------------------------------------------
+%% @doc
+%% Stop the server.
+%% @end
+%%---------------------------------------------------------------------
+
+-spec stop(gen_statem:server_ref()) -> ok.
+
+stop(Pid) ->
+    gen_statem:stop(Pid).
+
+
+%%---------------------------------------------------------------------
+%% @doc
+%% Returns the callback mode.
+%% @end
+%%---------------------------------------------------------------------
+callback_mode() -> [state_functions, state_enter].
+
 
 %%---------------------------------------------------------------------
 %% @doc
@@ -37,67 +67,90 @@ start_link(Ref, Transport, Opts) ->
 %% @end
 %%---------------------------------------------------------------------
 
--spec init(Ref :: ranch:ref(), Transport :: module(),
-    Opts :: katja_echo:katja_echo_options()) -> any().
+-spec init({gen_tcp:socket(), katja_echo:katja_echo_options()}) -> any().
 
-init(Ref, Transport, Opts) ->
-    {ok, Socket} = ranch:handshake(Ref),
+init({LSocket, Opts}) ->
     Cbk = katja_echo:callback(Opts),
-    loop(Socket, Transport, <<>>, #state{callback = Cbk}).
+
+    Data = #state{callback = Cbk, lsocket = LSocket},
+
+    Actions = [{next_event, internal, establish}],
+    {ok, idle, Data, Actions}.
 
 
-%%---------------------------------------------------------------------
-%% @doc
-%% Init function
-%% @end
-%%---------------------------------------------------------------------
+terminate(_Reason, _State, _Data) ->
+    ok.
 
--spec loop(Socket :: any(), Transport :: module(), Acc :: binary(), state()) -> ok.
 
-loop(Socket, Transport, Acc, #state{callback = Cbk, errors = Errors} = State) ->
-    {OK, Closed, Error, _Passive} = Transport:messages(),
-    ok = Transport:setopts(Socket, [{active, once}]),
-    receive
-        {OK, Socket, Data} ->
-            BinMsg2 = <<Acc/binary, Data/binary>>,
-            case katja_echo:decode(tcp, BinMsg2) of
-                {ok, #riemannpb_msg{ok=true, events = [], states = [],
-                 query = #riemannpb_query{string = Query}}} ->
+idle(enter, idle, _Data) ->
+    keep_state_and_data;
 
-                    {ok, Results} = katja_echo:query(Cbk, Query),
+idle(internal, establish, #state{lsocket = LSocket} = Data) ->
+    {ok, AcceptSocket} = gen_tcp:accept(LSocket),
 
-                    send_riemann_reply(Socket, Transport, Results),
+    NData = Data#state{socket = AcceptSocket},
 
-                    loop(Socket, Transport, <<>>, State);
-                {ok, #riemannpb_msg{ok=true, events = Events}} ->
-                    send_riemann_reply(Socket, Transport),
+    {next_state, connected, NData}.
 
-                    ok = katja_echo:events(Cbk, Events),
 
-                    loop(Socket, Transport, <<>>, State);
-                {error, #riemannpb_msg{ok=false, error=Reason}} ->
-                    Errors0 = maps:update_with(Reason, fun katja_echo:incr/1, Errors),
-                    loop(Socket, Transport, <<>>, State#state{errors = Errors0});
-                {error, Reason} ->
-                    Errors0 = maps:update_with(Reason, fun katja_echo:incr/1, Errors),
-                    loop(Socket, Transport, BinMsg2, State#state{errors = Errors0})
-            end;
-        {Closed, Socket} ->
-            ok;
-        {Error, Socket, _Reason} ->
-            ok = Transport:close(Socket)
+connected(enter, idle, #state{socket = Socket}) ->
+    ok = inet:setopts(Socket, [{active, once}]),
+
+    keep_state_and_data;
+
+connected(info, {tcp, Socket, Packet}, #state{socket = Socket} = Data) ->
+    {ok, NData} = process_packet(Data, Packet),
+
+    ok = inet:setopts(Socket, [{active, once}]),
+
+    {keep_state, NData};
+
+connected(info, {tcp_closed, Socket}, #state{socket = Socket}) ->
+    {stop, normal};
+
+connected(info, {tcp_error, Socket, _Reason}, #state{socket = Socket} = Data) ->
+    ok = gen_tcp:close(Socket),
+    {stop, normal, Data#state{socket = undefined}}.
+
+
+-spec process_packet(state(), binary()) -> ok.
+
+process_packet(#state{socket = Socket, callback = Cbk, errors = Errors, data = Acc} = State,
+    Packet) ->
+    BinMsg2 = <<Acc/binary, Packet/binary>>,
+    case katja_echo:decode(tcp, BinMsg2) of
+        {ok, #riemannpb_msg{ok=true, events = [], states = [],
+            query = #riemannpb_query{string = Query}}} ->
+
+            {ok, Results} = katja_echo:query(Cbk, Query),
+
+            send_riemann_reply(Socket, Results),
+
+        {ok, State#state{data = <<>>}};
+            {ok, #riemannpb_msg{ok=true, events = Events}} ->
+            send_riemann_reply(Socket),
+
+            ok = katja_echo:events(Cbk, Events),
+
+        {ok, State#state{data = <<>>}};
+            {error, #riemannpb_msg{ok=false, error=Reason}} ->
+            Errors0 = maps:update_with(Reason, fun katja_echo:incr/1, Errors),
+            {ok, State#state{data = <<>>, errors = Errors0}};
+        {error, Reason} ->
+            Errors0 = maps:update_with(Reason, fun katja_echo:incr/1, Errors),
+            {ok, State#state{data = BinMsg2, errors = Errors0}}
     end.
 
 
-send_riemann_reply(Socket, Transport) ->
+send_riemann_reply(Socket) ->
     Msg = katja_pb:encode_riemannpb_msg(#riemannpb_msg{ok=true}),
     BinMsg = iolist_to_binary(Msg),
     MsgSize = byte_size(BinMsg),
-    ok = Transport:send(Socket, <<MsgSize:32/integer-big, BinMsg/binary>>).
+    ok = gen_tcp:send(Socket, <<MsgSize:32/integer-big, BinMsg/binary>>).
 
 
-send_riemann_reply(Socket, Transport, Msg) ->
+send_riemann_reply(Socket, Msg) ->
     Msg1 = katja_pb:encode_riemannpb_msg(#riemannpb_msg{ok=true, events = Msg}),
     BinMsg = iolist_to_binary(Msg1),
     MsgSize = byte_size(BinMsg),
-    ok = Transport:send(Socket, <<MsgSize:32/integer-big, BinMsg/binary>>).
+    ok = gen_tcp:send(Socket, <<MsgSize:32/integer-big, BinMsg/binary>>).
