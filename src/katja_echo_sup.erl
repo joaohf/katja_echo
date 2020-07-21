@@ -66,12 +66,15 @@ child_spec(katja_echo_udp = Mod, Options) ->
     modules => [Mod]
   };
 
-child_spec(katja_echo_tcp = Mod, Options) ->
-    Port = proplists:get_value(port, Options),
-    Ref = {?SERVER, Mod},
-    TransportOpts = #{socket_opts => [{port, Port}]},
-
-    ranch:child_spec(Ref, ranch_tcp, TransportOpts, Mod, Options).
+child_spec(katja_echo_tcp, Options) ->
+    Mod = katja_echo_tcp_sup,
+    #{id => Mod,
+      start => {Mod, start_link, [Options]},
+      restart => permanent,
+      shutdown => infinity,
+      type => supervisor,
+      modules => [Mod]
+    }.
 
 
 -spec maybe_add_child(atom(), [atom()], supervisor:child_spec(),

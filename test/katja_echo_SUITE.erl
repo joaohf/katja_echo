@@ -56,13 +56,11 @@ end_per_suite(_Config) ->
 
 
 init_per_group(_GroupName, Config) ->
-    {ok, _} = application:ensure_all_started(ranch),
     {ok, _} = application:ensure_all_started(katja),
     Config.
 
 
 end_per_group(_GroupName, _Config) ->
-    ok = application:stop(ranch),
     ok = application:stop(katja),
     ok.
 
